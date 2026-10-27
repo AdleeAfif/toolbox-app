@@ -1,37 +1,141 @@
-{{define "index"}}<!doctype html>
+{{define "head"}}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Toolbox</title>
+  <title>{{.}}</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%230e0f0c'/%3E%3Crect x='11' y='6' width='10' height='5' fill='%23c6f135'/%3E%3Crect x='14' y='8' width='4' height='3' fill='%230e0f0c'/%3E%3Crect x='5' y='11' width='22' height='15' fill='%23c6f135'/%3E%3Crect x='5' y='16' width='22' height='2' fill='%230e0f0c'/%3E%3Crect x='14' y='15' width='4' height='5' fill='%23c6f135'/%3E%3C/svg%3E">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
-    label { display: block; font-weight: 600; margin: 1rem 0 .5rem; }
-    .hint { margin: .25rem 0 0; font-size: .875rem; color: #555; }
-    input { width: 100%; box-sizing: border-box; font: inherit; padding: .5rem; }
-    button { margin-top: .5rem; padding: .5rem 1rem; font: inherit; cursor: pointer; }
-    #qr-result { margin-top: 1.5rem; }
-    .qr { display: block; max-width: 100%; height: auto; }
-    .error { color: #b00020; }
-    .url { word-break: break-all; color: #555; }
-    .htmx-request button { opacity: .6; }
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0e0f0c;
+      color: #e8efe4;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    body::before {
+      content: "";
+      display: block;
+      height: 2px;
+      background: #c6f135;
+    }
+    main { max-width: 32rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+    h1 { margin: .35rem 0 1.75rem; font-size: 1.75rem; font-weight: 600; letter-spacing: -.03em; }
+    .kicker, .back, label, .download, .idx {
+      font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+      font-size: .75rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .kicker, .back, label { color: #9aa392; }
+    .kicker { margin: 0; }
+    .back { margin: 0 0 .5rem; }
+    .back a, .download { color: #c6f135; text-decoration: none; }
+    .back a:hover, .download:hover, .tools a:hover .name { color: #e8ffe0; }
+    label { display: block; margin: 1.25rem 0 .4rem; }
+    .hint { display: block; margin: .35rem 0 0; color: #9aa392; font-size: .875rem; letter-spacing: 0; text-transform: none; font-family: "Segoe UI", system-ui, sans-serif; }
+    .tools { list-style: none; margin: 0; padding: 0; }
+    .tools a {
+      display: grid;
+      grid-template-columns: 2.75rem 1fr;
+      gap: .25rem  .75rem;
+      padding: 1rem 0;
+      border-top: 1px solid #2a2e26;
+      color: inherit;
+      text-decoration: none;
+    }
+    .tools li:last-child a { border-bottom: 1px solid #2a2e26; }
+    .idx { color: #c6f135; padding-top: .15rem; }
+    .name { display: block; font-weight: 600; }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: .6rem .7rem;
+      border: 1px solid #2a2e26;
+      border-radius: 0;
+      background: #14160f;
+      color: inherit;
+      font: inherit;
+    }
+    input[type="file"]::file-selector-button {
+      margin-right: .75rem;
+      padding: .35rem .55rem;
+      border: 1px solid #3a4034;
+      border-radius: 0;
+      background: #0e0f0c;
+      color: #e8efe4;
+      font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+      font-size: .7rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    input:focus, button:focus-visible, a:focus-visible {
+      outline: 1px solid #c6f135;
+      outline-offset: 3px;
+    }
+    button {
+      margin-top: 1.25rem;
+      padding: .65rem 1rem;
+      border: 1px solid #c6f135;
+      border-radius: 0;
+      background: transparent;
+      color: #c6f135;
+      font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+      font-size: .75rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    button:hover { background: #c6f135; color: #0e0f0c; }
+    .htmx-request button { opacity: .45; }
+    #qr-result { margin-top: 2rem; }
+    .qr { display: block; width: min(100%, 16rem); height: auto; padding: .5rem; background: #fff; }
+    .url { margin: .75rem 0; color: #9aa392; font-size: .875rem; word-break: break-all; }
+    .download { display: inline-block; }
+    .error { color: #ff6b6b; }
   </style>
 </head>
 <body>
+{{end}}
+
+{{define "index"}}
+{{template "head" "Toolbox"}}
+<main>
+  <p class="kicker">00 — Index</p>
   <h1>Toolbox</h1>
-  <section aria-labelledby="qr-heading">
-    <h2 id="qr-heading">URL to QR</h2>
-    <form hx-post="/qr" hx-target="#qr-result" hx-swap="innerHTML" hx-encoding="multipart/form-data">
-      <label for="url">URL</label>
-      <input id="url" name="url" type="url" maxlength="2048" placeholder="https://example.com" required>
-      <label for="logo">Logo (optional)</label>
-      <input id="logo" name="logo" type="file" accept="image/png,image/jpeg" aria-describedby="logo-hint">
-      <p id="logo-hint" class="hint">PNG or JPEG, up to 1 MB. Shown small in the center.</p>
-      <button type="submit">Generate</button>
-    </form>
-    <div id="qr-result" aria-live="polite"></div>
-  </section>
+  <ul class="tools">
+    <li>
+      <a href="/qr">
+        <span class="idx">01</span>
+        <span>
+          <span class="name">URL to QR</span>
+          <span class="hint">Paste a URL, optionally add a logo, and download a PNG.</span>
+        </span>
+      </a>
+    </li>
+  </ul>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "qr"}}
+{{template "head" "URL to QR"}}
+<main>
+  <p class="back"><a href="/">Toolbox</a></p>
+  <h1>URL to QR</h1>
+  <form hx-post="/qr" hx-target="#qr-result" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+    <label for="url">URL</label>
+    <input id="url" name="url" type="url" maxlength="2048" placeholder="https://example.com" required>
+    <label for="logo">Logo (optional)</label>
+    <input id="logo" name="logo" type="file" accept="image/png,image/jpeg" aria-describedby="logo-hint">
+    <p id="logo-hint" class="hint">PNG or JPEG, up to 1 MB. Shown small in the center.</p>
+    <button type="submit">Generate</button>
+  </form>
+  <div id="qr-result" aria-live="polite"></div>
+</main>
 </body>
 </html>
 {{end}}
@@ -39,7 +143,7 @@
 {{define "result"}}
 <img class="qr" src="data:image/png;base64,{{.Base64}}" alt="QR code for {{.URL}}">
 <p class="url">{{.URL}}</p>
-<a href="data:image/png;base64,{{.Base64}}" download="qr.png">Download PNG</a>
+<a class="download" href="data:image/png;base64,{{.Base64}}" download="qr.png">Download PNG</a>
 {{end}}
 
 {{define "error"}}

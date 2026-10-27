@@ -4,7 +4,7 @@ Instructions for coding agents working in this repository. Read this whole file 
 
 ## What this is
 
-A toolbox of small utilities on one page. Each tool is a section with its own htmx form and result area.
+A toolbox of small utilities. The home page lists them. Each tool is its own page with an htmx form and result area.
 
 Current tools:
 
@@ -33,14 +33,14 @@ Without `make` on Windows, run the two `go` commands directly.
 
 - `cmd/server` - entry point, listens on `:8080`.
 - `internal/qr` - trims and validates the URL, encodes it to a PNG, and draws an optional logo in the center.
-- `internal/server` - routes `GET /` (page) and `POST /qr` (multipart htmx form, returns a partial).
-- `web/templates/index.html` - `index`, `result`, and `error` templates.
+- `internal/server` - routes `GET /` (tool list), `GET /qr` (QR page), and `POST /qr` (multipart htmx form, returns a partial).
+- `web/templates/index.html` - `index`, `qr`, `result`, and `error` templates.
 
 ## Adding a tool
 
 - Put the logic in its own package under `internal/<tool>`, with a test.
-- Add one `POST /<tool>` route in `internal/server` that returns an HTML partial.
-- Add a `<section>` to `index.html` with a form targeting its own result `div`.
+- Add `GET /<tool>` for the page and `POST /<tool>` that returns an HTML partial.
+- Add the tool to the list on the home page.
 
 ## Rules
 

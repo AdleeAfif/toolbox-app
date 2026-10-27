@@ -18,12 +18,17 @@ var tmpl = template.Must(template.ParseFS(web.Templates, "templates/*.html"))
 func New() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", index)
+	mux.HandleFunc("GET /qr", qrPage)
 	mux.HandleFunc("POST /qr", generate)
 	return mux
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
 	render(w, "index", nil)
+}
+
+func qrPage(w http.ResponseWriter, r *http.Request) {
+	render(w, "qr", nil)
 }
 
 func generate(w http.ResponseWriter, r *http.Request) {
