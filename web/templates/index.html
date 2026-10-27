@@ -1,0 +1,47 @@
+{{define "index"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>URL Tool</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; font-weight: 600; margin: 1rem 0 .5rem; }
+    .hint { margin: .25rem 0 0; font-size: .875rem; color: #555; }
+    input { width: 100%; box-sizing: border-box; font: inherit; padding: .5rem; }
+    button { margin-top: .5rem; padding: .5rem 1rem; font: inherit; cursor: pointer; }
+    #qr-result { margin-top: 1.5rem; }
+    .qr { display: block; max-width: 100%; height: auto; }
+    .error { color: #b00020; }
+    .url { word-break: break-all; color: #555; }
+    .htmx-request button { opacity: .6; }
+  </style>
+</head>
+<body>
+  <h1>URL Tool</h1>
+  <section aria-labelledby="qr-heading">
+    <h2 id="qr-heading">URL to QR</h2>
+    <form hx-post="/qr" hx-target="#qr-result" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+      <label for="url">URL</label>
+      <input id="url" name="url" type="url" maxlength="2048" placeholder="https://example.com" required>
+      <label for="logo">Logo (optional)</label>
+      <input id="logo" name="logo" type="file" accept="image/png,image/jpeg" aria-describedby="logo-hint">
+      <p id="logo-hint" class="hint">PNG or JPEG, up to 1 MB. Shown small in the center.</p>
+      <button type="submit">Generate</button>
+    </form>
+    <div id="qr-result" aria-live="polite"></div>
+  </section>
+</body>
+</html>
+{{end}}
+
+{{define "result"}}
+<img class="qr" src="data:image/png;base64,{{.Base64}}" alt="QR code for {{.URL}}">
+<p class="url">{{.URL}}</p>
+<a href="data:image/png;base64,{{.Base64}}" download="qr.png">Download PNG</a>
+{{end}}
+
+{{define "error"}}
+<p class="error" role="alert">{{.}}</p>
+{{end}}
