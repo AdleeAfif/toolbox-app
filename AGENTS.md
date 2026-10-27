@@ -1,10 +1,10 @@
-# AGENTS.md - url-tool
+# AGENTS.md - toolbox-app
 
 Instructions for coding agents working in this repository. Read this whole file before making changes.
 
 ## What this is
 
-A toolbox of small utilities for URLs, on one page. Each tool is a section with its own htmx form and result area.
+A toolbox of small utilities on one page. Each tool is a section with its own htmx form and result area.
 
 Current tools:
 
@@ -44,8 +44,8 @@ Without `make` on Windows, run the two `go` commands directly.
 
 ## Rules
 
-- Trim input. Reject empty, longer than 2048 bytes, or not an absolute http/https URL.
-- Never fetch or follow the URL unless a tool explicitly needs to, and then only with a timeout.
+- Trim input. A URL tool rejects empty input, input longer than 2048 bytes, or anything that is not an absolute http/https URL.
+- Never fetch or follow a URL unless a tool explicitly needs to, and then only with a timeout.
 - Render user input only through `html/template` so it stays escaped.
 - Routes return the `error` partial with HTTP 200, because htmx only swaps 2xx responses by default.
 

@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"url-tool/internal/qr"
-	"url-tool/web"
+	"toolbox-app/internal/qr"
+	"toolbox-app/web"
 )
 
 var tmpl = template.Must(template.ParseFS(web.Templates, "templates/*.html"))

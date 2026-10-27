@@ -1,4 +1,4 @@
-module url-tool
+module toolbox-app
 
 go 1.23.2
 

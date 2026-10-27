@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"url-tool/internal/server"
+	"toolbox-app/internal/server"
 )
 
 func main() {

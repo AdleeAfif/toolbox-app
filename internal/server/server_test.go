@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"url-tool/internal/qr"
+	"toolbox-app/internal/qr"
 )
 
 func multipartBody(t *testing.T, rawURL string, logo []byte) (*bytes.Buffer, string) {
