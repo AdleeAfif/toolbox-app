@@ -49,7 +49,7 @@
     .tools li:last-child a { border-bottom: 1px solid #2a2e26; }
     .idx { color: #c6f135; padding-top: .15rem; }
     .name { display: block; font-weight: 600; }
-    input {
+    input, textarea {
       width: 100%;
       box-sizing: border-box;
       padding: .6rem .7rem;
@@ -59,6 +59,7 @@
       color: inherit;
       font: inherit;
     }
+    textarea { display: block; min-height: 8rem; resize: vertical; }
     input[type="file"]::file-selector-button {
       margin-right: .75rem;
       padding: .35rem .55rem;
@@ -71,7 +72,7 @@
       letter-spacing: .12em;
       text-transform: uppercase;
     }
-    input:focus, button:focus-visible, a:focus-visible {
+    input:focus, textarea:focus, button:focus-visible, a:focus-visible {
       outline: 1px solid #c6f135;
       outline-offset: 3px;
     }
@@ -90,11 +91,15 @@
     }
     button:hover { background: #c6f135; color: #0e0f0c; }
     .htmx-request button { opacity: .45; }
-    #qr-result { margin-top: 2rem; }
-    .qr { display: block; width: min(100%, 16rem); height: auto; padding: .5rem; background: #fff; }
+    #qr-result, #compare-result, #compress-result { margin-top: 2rem; }
+    .qr, .preview { display: block; width: min(100%, 16rem); height: auto; padding: .5rem; background: #fff; }
     .url { margin: .75rem 0; color: #9aa392; font-size: .875rem; word-break: break-all; }
     .download { display: inline-block; }
-    .error { color: #ff6b6b; }
+    .error, .diff-removed { color: #ff6b6b; }
+    .diff { list-style: none; margin: 0; padding: 0; font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace; font-size: .8125rem; }
+    .diff li { white-space: pre-wrap; word-break: break-word; min-height: 1.2em; }
+    .diff-added { color: #c6f135; }
+    .diff-skip { color: #9aa392; }
   </style>
 </head>
 <body>
@@ -112,6 +117,24 @@
         <span>
           <span class="name">URL to QR</span>
           <span class="hint">Paste a URL, optionally add a logo, and download a PNG.</span>
+        </span>
+      </a>
+    </li>
+    <li>
+      <a href="/compare">
+        <span class="idx">02</span>
+        <span>
+          <span class="name">Text compare</span>
+          <span class="hint">Paste two texts and see the lines that changed.</span>
+        </span>
+      </a>
+    </li>
+    <li>
+      <a href="/compress">
+        <span class="idx">03</span>
+        <span>
+          <span class="name">Compress</span>
+          <span class="hint">Shrink a JPEG, PNG, or PDF and download it.</span>
         </span>
       </a>
     </li>
@@ -148,4 +171,58 @@
 
 {{define "error"}}
 <p class="error" role="alert">{{.}}</p>
+{{end}}
+
+{{define "compare"}}
+{{template "head" "Text compare"}}
+<main>
+  <p class="back"><a href="/">Toolbox</a></p>
+  <h1>Text compare</h1>
+  <form hx-post="/compare" hx-target="#compare-result" hx-swap="innerHTML">
+    <label for="before">Before</label>
+    <textarea id="before" name="before"></textarea>
+    <label for="after">After</label>
+    <textarea id="after" name="after"></textarea>
+    <button type="submit">Compare</button>
+  </form>
+  <div id="compare-result" aria-live="polite"></div>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "compare-result"}}
+{{if .Same}}
+<p>No differences.</p>
+{{else}}
+<ol class="diff">
+{{range .Lines}}
+<li class="diff-{{.Kind}}">{{.Text}}</li>
+{{end}}
+</ol>
+{{end}}
+{{end}}
+
+{{define "compress"}}
+{{template "head" "Compress"}}
+<main>
+  <p class="back"><a href="/">Toolbox</a></p>
+  <h1>Compress</h1>
+  <form hx-post="/compress" hx-target="#compress-result" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+    <label for="file">File</label>
+    <input id="file" name="file" type="file" accept="image/png,image/jpeg,application/pdf" required>
+    <p class="hint">JPEG, PNG, or PDF, up to 20 MB.</p>
+    <button type="submit">Compress</button>
+  </form>
+  <div id="compress-result" aria-live="polite"></div>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "compress-result"}}
+<p class="url">{{.Before}} bytes before, {{.After}} bytes after</p>
+{{if .Note}}<p>{{.Note}}</p>{{end}}
+{{if .Preview}}<img class="preview" src="data:{{.MIME}};base64,{{.Base64}}" alt="Compressed image">{{end}}
+<a class="download" href="data:{{.MIME}};base64,{{.Base64}}" download="{{.Name}}">Download</a>
 {{end}}

@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"image"
+	"image/jpeg"
 	"image/png"
 	"io"
 	"mime/multipart"
@@ -19,26 +20,46 @@ func multipartBody(t *testing.T, rawURL string, logo []byte) (*bytes.Buffer, str
 	t.Helper()
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
-	mw.WriteField("url", rawURL)
+	if err := mw.WriteField("url", rawURL); err != nil {
+		t.Fatal(err)
+	}
 	if logo != nil {
 		fw, err := mw.CreateFormFile("logo", "logo.png")
 		if err != nil {
 			t.Fatal(err)
 		}
-		fw.Write(logo)
+		if _, err := fw.Write(logo); err != nil {
+			t.Fatal(err)
+		}
 	}
-	mw.Close()
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
 	return &body, mw.FormDataContentType()
+}
+
+func TestHealth(t *testing.T) {
+	for _, path := range []string{"/healthz", "/readyz"} {
+		if body := get(t, path); body != "ok\n" {
+			t.Fatalf("%s = %q", path, body)
+		}
+	}
 }
 
 func TestPages(t *testing.T) {
 	home := get(t, "/")
-	if !strings.Contains(home, `href="/qr"`) || strings.Contains(home, `hx-post="/qr"`) {
-		t.Fatalf("home should list the QR tool: %.200q", home)
+	if !strings.Contains(home, `href="/qr"`) || !strings.Contains(home, `href="/compare"`) || !strings.Contains(home, `href="/compress"`) || strings.Contains(home, `hx-post=`) {
+		t.Fatalf("home should list the tools: %.300q", home)
 	}
-	page := get(t, "/qr")
-	if !strings.Contains(page, `hx-post="/qr"`) || !strings.Contains(page, `href="/"`) {
-		t.Fatalf("QR page should contain the form and a link home: %.200q", page)
+	for _, tc := range []struct{ path, post string }{
+		{"/qr", `hx-post="/qr"`},
+		{"/compare", `hx-post="/compare"`},
+		{"/compress", `hx-post="/compress"`},
+	} {
+		page := get(t, tc.path)
+		if !strings.Contains(page, tc.post) || !strings.Contains(page, `href="/"`) {
+			t.Fatalf("%s should contain the form and a link home: %.200q", tc.path, page)
+		}
 	}
 }
 
@@ -81,4 +102,62 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("%s: status %d, body %.120q, want %q", name, rec.Code, rec.Body.String(), tc.want)
 		}
 	}
+}
+
+func TestComparePost(t *testing.T) {
+	body := strings.NewReader(url.Values{
+		"before": {"<script>alert(1)</script>"},
+		"after":  {"ok"},
+	}.Encode())
+	req := httptest.NewRequest(http.MethodPost, "/compare", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	New().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "&lt;script&gt;") {
+		t.Fatalf("status %d body %.200q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCompressPost(t *testing.T) {
+	var img bytes.Buffer
+	if err := jpeg.Encode(&img, image.NewGray(image.Rect(0, 0, 8, 8)), &jpeg.Options{Quality: 80}); err != nil {
+		t.Fatal(err)
+	}
+	okBody, okType := fileBody(t, "photo.jpg", img.Bytes())
+	ok := post(t, "/compress", okBody, okType)
+	if ok.Code != http.StatusOK || !strings.Contains(ok.Body.String(), `download="compressed.jpg"`) {
+		t.Fatalf("status %d body %.200q", ok.Code, ok.Body.String())
+	}
+
+	badBody, badType := fileBody(t, "notes.txt", []byte("hello"))
+	bad := post(t, "/compress", badBody, badType)
+	if bad.Code != http.StatusOK || !strings.Contains(bad.Body.String(), "file must be a PNG, JPEG, or PDF") {
+		t.Fatalf("status %d body %.200q", bad.Code, bad.Body.String())
+	}
+}
+
+func fileBody(t *testing.T, name string, data []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, err := mw.CreateFormFile("file", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fw.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return &body, mw.FormDataContentType()
+}
+
+func post(t *testing.T, path string, body io.Reader, contentType string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, path, body)
+	req.Header.Set("Content-Type", contentType)
+	rec := httptest.NewRecorder()
+	New().ServeHTTP(rec, req)
+	return rec
 }

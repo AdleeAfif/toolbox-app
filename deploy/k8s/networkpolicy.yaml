@@ -1,0 +1,21 @@
+# k3s enforces NetworkPolicy with its embedded kube-router controller, which always
+# accepts traffic from the pod's own node. Kubelet probes therefore need no ipBlock rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: toolbox-app-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: toolbox-app
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: 8080
+          protocol: TCP
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+        - namespaceSelector: {}

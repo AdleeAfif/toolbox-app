@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/color"
-	_ "image/jpeg"
+	_ "image/jpeg" // register the JPEG decoder for logo uploads
 	"image/png"
 	"net/url"
 	"strings"

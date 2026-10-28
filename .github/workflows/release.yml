@@ -1,0 +1,71 @@
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  IMAGE: docker.io/adleeafif/toolbox-app
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.14.0
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: adleeafif
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64,linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: image
+    runs-on: [self-hosted, rpi5]
+    env:
+      TAG: ${{ needs.image.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "KUBECONFIG=$HOME/.kube/config" >> "$GITHUB_ENV"
+      - run: sed -i "s|^\(\s*newTag:\).*|\1 ${TAG}|" deploy/k8s/kustomization.yaml
+      - name: Apply manifests
+        run: |
+          kubectl create namespace toolbox-app --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -k deploy/k8s
+      - name: Wait for rollout, roll back on failure
+        run: |
+          if ! kubectl -n toolbox-app rollout status deployment/toolbox-app --timeout=180s; then
+            kubectl -n toolbox-app rollout undo deployment/toolbox-app
+            exit 1
+          fi

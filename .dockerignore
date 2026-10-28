@@ -1,0 +1,10 @@
+.git
+.github
+.cursor
+bin/
+*.exe
+*.md
+deploy/
+docs/
+Dockerfile
+.dockerignore
