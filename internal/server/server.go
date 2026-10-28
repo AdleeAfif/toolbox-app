@@ -40,8 +40,18 @@ func live(w http.ResponseWriter, _ *http.Request) {
 	_, _ = io.WriteString(w, "ok\n")
 }
 
+// page renders a tool as a full page, or as just the tool when htmx loads it
+// into the toolbox dialog.
+func page(w http.ResponseWriter, r *http.Request, name string) {
+	w.Header().Add("Vary", "HX-Request")
+	if r.Header.Get("HX-Request") == "true" {
+		name += "-tool"
+	}
+	render(w, name, nil)
+}
+
 func qrPage(w http.ResponseWriter, r *http.Request) {
-	render(w, "qr", nil)
+	page(w, r, "qr")
 }
 
 func generate(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +88,7 @@ func generate(w http.ResponseWriter, r *http.Request) {
 }
 
 func comparePage(w http.ResponseWriter, r *http.Request) {
-	render(w, "compare", nil)
+	page(w, r, "compare")
 }
 
 func comparePost(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +112,7 @@ func comparePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func compressPage(w http.ResponseWriter, r *http.Request) {
-	render(w, "compress", nil)
+	page(w, r, "compress")
 }
 
 func compressPost(w http.ResponseWriter, r *http.Request) {

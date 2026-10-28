@@ -4,7 +4,7 @@ Instructions for coding agents working in this repository. Read this whole file 
 
 ## What this is
 
-A toolbox of small utilities. The home page lists them. Each tool is its own page with an htmx form and result area.
+A toolbox of small utilities. The home page is a closed toolbox. Opening it pops up a dialog listing the tools, and picking one shows it in that same dialog, with Back to toolbox and Close toolbox buttons. Each tool also stays a full page at its own URL, with an htmx form and result area.
 
 Current tools:
 
@@ -39,15 +39,16 @@ Without `make` on Windows, run the two `go` commands directly.
 - `internal/qr` - trims and validates the URL, encodes it to a PNG, and draws an optional logo in the center.
 - `internal/compare` - line diff of two texts.
 - `internal/compress` - shrinks a JPEG, PNG, or PDF in memory.
-- `internal/server` - `GET /` (tool list), `GET /healthz` and `GET /readyz`, and `GET` and `POST` for `/qr`, `/compare`, and `/compress`. Each `POST` returns an HTML partial.
-- `web/templates/index.html` - page templates plus `result`, `compare-result`, `compress-result`, and `error`.
+- `internal/server` - `GET /` (tool list), `GET /healthz` and `GET /readyz`, and `GET` and `POST` for `/qr`, `/compare`, and `/compress`. Each `POST` returns an HTML partial. A `GET` with the `HX-Request` header returns only the tool (`<tool>-tool`) for the dialog, and a plain `GET` returns the full page.
+- `web/templates/index.html` - the toolbox home page (a box button, one `<dialog>` with a tool list view and a tool view, and a small inline script), a `<tool>-tool` and a full-page template per tool, plus `result`, `compare-result`, `compress-result`, and `error`.
 - `Dockerfile`, `deploy/k8s`, `.github/workflows/release.yml` - the Pi release path. See `docs/deploy.md`.
 
 ## Adding a tool
 
 - Put the logic in its own package under `internal/<tool>`, with a test.
 - Add `GET /<tool>` for the page and `POST /<tool>` that returns an HTML partial.
-- Add the tool to the list on the home page.
+- Split its template into `<tool>-tool` (heading, form, result area) and `<tool>` (head, back link, then `<tool>-tool`). `GET` goes through `page()` so htmx gets just the tool.
+- Add a tile to the list in the dialog on the home page, and a link to the `<noscript>` line, with `href` and `hx-get` to `/<tool>`, `hx-target="#tool-body"`, and a `.name` span.
 
 ## Rules
 

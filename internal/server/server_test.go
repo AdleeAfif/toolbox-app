@@ -51,6 +51,11 @@ func TestPages(t *testing.T) {
 	if !strings.Contains(home, `href="/qr"`) || !strings.Contains(home, `href="/compare"`) || !strings.Contains(home, `href="/compress"`) || strings.Contains(home, `hx-post=`) {
 		t.Fatalf("home should list the tools: %.300q", home)
 	}
+	for _, want := range []string{`id="toolbox"`, `id="picker"`, `hx-get="/qr"`, `hx-target="#tool-body"`, `<dialog id="tool"`} {
+		if !strings.Contains(home, want) {
+			t.Fatalf("home should contain %q", want)
+		}
+	}
 	for _, tc := range []struct{ path, post string }{
 		{"/qr", `hx-post="/qr"`},
 		{"/compare", `hx-post="/compare"`},
@@ -59,6 +64,26 @@ func TestPages(t *testing.T) {
 		page := get(t, tc.path)
 		if !strings.Contains(page, tc.post) || !strings.Contains(page, `href="/"`) {
 			t.Fatalf("%s should contain the form and a link home: %.200q", tc.path, page)
+		}
+	}
+}
+
+func TestToolFragment(t *testing.T) {
+	for _, tc := range []struct{ path, post string }{
+		{"/qr", `hx-post="/qr"`},
+		{"/compare", `hx-post="/compare"`},
+		{"/compress", `hx-post="/compress"`},
+	} {
+		req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		New().ServeHTTP(rec, req)
+		body := rec.Body.String()
+		if rec.Code != http.StatusOK || !strings.Contains(body, tc.post) || strings.Contains(body, "<html") {
+			t.Errorf("%s: htmx should get just the tool: status %d, %.200q", tc.path, rec.Code, body)
+		}
+		if rec.Header().Get("Vary") != "HX-Request" {
+			t.Errorf("%s: Vary = %q", tc.path, rec.Header().Get("Vary"))
 		}
 	}
 }
