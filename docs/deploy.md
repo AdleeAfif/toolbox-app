@@ -18,6 +18,8 @@ The committed `newTag` stays at `0.1.0`, so a manual `make deploy` rolls back to
 
 `GET /healthz` and `GET /readyz` both return `ok`. Nothing outside the process has to be up.
 
+Route stops calls `nominatim.openstreetmap.org`, `router.project-osrm.org`, and `overpass-api.de` over HTTPS when someone searches. The NetworkPolicy only limits ingress, so nothing else is needed. If those services are down, only that tool shows an error.
+
 ## One-time setup
 
 1. **Docker Hub token**: reuse the access token already stored for profile-api. In this repo, add it under **Settings > Secrets and variables > Actions** as `DOCKERHUB_TOKEN` (Read & Write). There is no `ENV` secret; this app has no configuration.

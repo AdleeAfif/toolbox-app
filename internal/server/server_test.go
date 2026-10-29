@@ -11,9 +11,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"toolbox-app/internal/qr"
+	"toolbox-app/internal/stops"
 )
 
 func multipartBody(t *testing.T, rawURL string, logo []byte) (*bytes.Buffer, string) {
@@ -51,7 +53,7 @@ func TestPages(t *testing.T) {
 	if !strings.Contains(home, `href="/qr"`) || !strings.Contains(home, `href="/compare"`) || !strings.Contains(home, `href="/compress"`) || strings.Contains(home, `hx-post=`) {
 		t.Fatalf("home should list the tools: %.300q", home)
 	}
-	for _, want := range []string{`id="toolbox"`, `id="picker"`, `hx-get="/qr"`, `hx-target="#tool-body"`, `<dialog id="tool"`} {
+	for _, want := range []string{`id="toolbox"`, `id="picker"`, `hx-get="/qr"`, `hx-get="/stops"`, `<a href="/stops">Route stops</a>`, `hx-target="#tool-body"`, `<dialog id="tool"`} {
 		if !strings.Contains(home, want) {
 			t.Fatalf("home should contain %q", want)
 		}
@@ -60,6 +62,7 @@ func TestPages(t *testing.T) {
 		{"/qr", `hx-post="/qr"`},
 		{"/compare", `hx-post="/compare"`},
 		{"/compress", `hx-post="/compress"`},
+		{"/stops", `hx-post="/stops"`},
 	} {
 		page := get(t, tc.path)
 		if !strings.Contains(page, tc.post) || !strings.Contains(page, `href="/"`) {
@@ -73,6 +76,7 @@ func TestToolFragment(t *testing.T) {
 		{"/qr", `hx-post="/qr"`},
 		{"/compare", `hx-post="/compare"`},
 		{"/compress", `hx-post="/compress"`},
+		{"/stops", `hx-post="/stops"`},
 	} {
 		req := httptest.NewRequest(http.MethodGet, tc.path, nil)
 		req.Header.Set("HX-Request", "true")
@@ -158,6 +162,40 @@ func TestCompressPost(t *testing.T) {
 	bad := post(t, "/compress", badBody, badType)
 	if bad.Code != http.StatusOK || !strings.Contains(bad.Body.String(), "file must be a PNG, JPEG, or PDF") {
 		t.Fatalf("status %d body %.200q", bad.Code, bad.Body.String())
+	}
+}
+
+func TestStopsPost(t *testing.T) {
+	var calls atomic.Int32
+	geo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		_, _ = io.WriteString(w, "[]")
+	}))
+	defer geo.Close()
+	h := newHandler(stops.New(geo.URL, geo.URL, geo.URL))
+	form := func(to string) io.Reader {
+		return strings.NewReader(url.Values{"from": {"3.1, 101.6"}, "to": {to}, "kind": {"fuel"}}.Encode())
+	}
+	send := func(body io.Reader) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/stops", body)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	empty := send(form(""))
+	if empty.Code != http.StatusOK || !strings.Contains(empty.Body.String(), "enter a destination") || calls.Load() != 0 {
+		t.Fatalf("empty: status %d body %.200q calls %d", empty.Code, empty.Body.String(), calls.Load())
+	}
+	if empty.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control = %q", empty.Header().Get("Cache-Control"))
+	}
+
+	script := send(form("<script>alert(1)</script>"))
+	body := script.Body.String()
+	if script.Code != http.StatusOK || !strings.Contains(body, "&lt;script&gt;") || strings.Contains(body, "<script>") {
+		t.Fatalf("escape: status %d body %.200q", script.Code, body)
 	}
 }
 

@@ -11,9 +11,11 @@ flowchart TD
   pick --> qr[URL to QR]
   pick --> compare[Text compare]
   pick --> compress[Compress]
+  pick --> stops[Route stops]
   qr --> result[Use the result on the page]
   compare --> result
   compress --> result
+  stops --> result
   result --> drop[The input is discarded]
 ```
 
@@ -22,3 +24,5 @@ flowchart TD
 **Text compare** shows the lines that changed between two texts.
 
 **Compress** makes a JPEG, PNG, or PDF smaller so it is easier to send.
+
+**Route stops** lists petrol stations, food, cafes, or mosques along a drive, and says which are easy to stop at. To find them, the start and destination are sent to OpenStreetMap's public services. They are not stored or logged here.

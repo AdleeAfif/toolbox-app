@@ -6,6 +6,24 @@
   <title>{{.}}</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%230e0f0c'/%3E%3Crect x='11' y='6' width='10' height='5' fill='%23c6f135'/%3E%3Crect x='14' y='8' width='4' height='3' fill='%230e0f0c'/%3E%3Crect x='5' y='11' width='22' height='15' fill='%23c6f135'/%3E%3Crect x='5' y='16' width='22' height='2' fill='%230e0f0c'/%3E%3Crect x='14' y='15' width='4' height='5' fill='%23c6f135'/%3E%3C/svg%3E">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script>
+    // Route stops: fill the From field with the browser's location. Defined here so it works in the dialog too.
+    function toolboxLocate(btn) {
+      var field = document.getElementById("from");
+      var note = document.getElementById("from-note");
+      note.hidden = true;
+      if (!navigator.geolocation) { note.hidden = false; return; }
+      btn.disabled = true;
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        field.value = pos.coords.latitude.toFixed(5) + ", " + pos.coords.longitude.toFixed(5);
+        btn.disabled = false;
+      }, function () {
+        field.value = "";
+        note.hidden = false;
+        btn.disabled = false;
+      }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    }
+  </script>
   <style>
     :root { color-scheme: dark; }
     body {
@@ -39,7 +57,7 @@
     label { display: block; margin: 1.25rem 0 .4rem; }
     .hint { display: block; margin: .35rem 0 0; color: #9aa392; font-size: .875rem; letter-spacing: 0; text-transform: none; font-family: "Segoe UI", system-ui, sans-serif; }
     .name { display: block; font-weight: 600; }
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       box-sizing: border-box;
       padding: .6rem .7rem;
@@ -62,7 +80,7 @@
       letter-spacing: .12em;
       text-transform: uppercase;
     }
-    input:focus, textarea:focus, button:focus-visible, a:focus-visible, summary:focus-visible {
+    input:focus, textarea:focus, select:focus, button:focus-visible, a:focus-visible, summary:focus-visible {
       outline: 1px solid #c6f135;
       outline-offset: 3px;
     }
@@ -81,7 +99,19 @@
     }
     button:hover { background: #c6f135; color: #0e0f0c; }
     .htmx-request button { opacity: .45; }
-    #qr-result, #compare-result, #compress-result { margin-top: 2rem; }
+    #qr-result, #compare-result, #compress-result, #stops-result { margin-top: 2rem; }
+    button:disabled { opacity: .45; cursor: progress; }
+    .locate { margin-top: .5rem; padding: .45rem .7rem; }
+    .hint[hidden] { display: none; }
+    .searching { display: none; margin: .75rem 0 0; color: #9aa392; font-size: .875rem; }
+    .htmx-request .searching { display: block; }
+    .stops { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .75rem; }
+    .stops li { padding: .85rem 1rem; border: 1px solid #2a2e26; background: #14160f; }
+    .tag { display: block; margin-top: .45rem; color: #9aa392; font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; }
+    .tag-easy { color: #c6f135; }
+    .links { display: flex; gap: 1rem; margin-top: .55rem; font-size: .875rem; }
+    .links a, .credit a { color: #c6f135; }
+    .credit { margin-top: 1.25rem; color: #9aa392; font-size: .75rem; }
     .qr, .preview { display: block; width: min(100%, 16rem); height: auto; padding: .5rem; background: #fff; }
     .url { margin: .75rem 0; color: #9aa392; font-size: .875rem; word-break: break-all; }
     .download { display: inline-block; }
@@ -171,6 +201,7 @@
     .tools li { animation: pop .3s ease-out both; }
     .tools li:nth-child(2) { animation-delay: .06s; }
     .tools li:nth-child(3) { animation-delay: .12s; }
+    .tools li:nth-child(4) { animation-delay: .18s; }
     .tools a {
       display: block;
       box-sizing: border-box;
@@ -242,7 +273,7 @@
     </span>
   </button>
   <noscript>
-    <p class="plain"><a href="/qr">URL to QR</a> · <a href="/compare">Text compare</a> · <a href="/compress">Compress</a></p>
+    <p class="plain"><a href="/qr">URL to QR</a> · <a href="/compare">Text compare</a> · <a href="/compress">Compress</a> · <a href="/stops">Route stops</a></p>
   </noscript>
 </main>
 
@@ -273,6 +304,13 @@
           <span class="idx">03</span>
           <span class="name">Compress</span>
           <span class="hint">Shrink a JPEG, PNG, or PDF and download it.</span>
+        </a>
+      </li>
+      <li>
+        <a href="/stops" hx-get="/stops" hx-target="#tool-body" hx-swap="innerHTML">
+          <span class="idx">04</span>
+          <span class="name">Route stops</span>
+          <span class="hint">Find petrol, food, cafes, or mosques along your drive.</span>
         </a>
       </li>
     </ul>
@@ -446,4 +484,59 @@
 {{if .Note}}<p>{{.Note}}</p>{{end}}
 {{if .Preview}}<img class="preview" src="data:{{.MIME}};base64,{{.Base64}}" alt="Compressed image">{{end}}
 <a class="download" href="data:{{.MIME}};base64,{{.Base64}}" download="{{.Name}}">Download</a>
+{{end}}
+
+{{define "stops-tool"}}
+<h1>Route stops</h1>
+<form hx-post="/stops" hx-target="#stops-result" hx-swap="innerHTML">
+  <label for="from">From</label>
+  <input id="from" name="from" type="text" maxlength="200" placeholder="e.g. KLCC" autocomplete="off" aria-describedby="place-hint">
+  <button type="button" class="locate" onclick="toolboxLocate(this)">Use my location</button>
+  <p id="from-note" class="hint" hidden>Location is off. Type where you are starting from.</p>
+  <label for="to">To</label>
+  <input id="to" name="to" type="text" maxlength="200" placeholder="e.g. Tapah" autocomplete="off" aria-describedby="place-hint">
+  <p id="place-hint" class="hint">e.g. Ipoh · Mid Valley Megamall · Jalan Ampang, KL · 3.0797, 101.7137</p>
+  <label for="kind">Looking for</label>
+  <select id="kind" name="kind">
+    <option value="fuel">Petrol station</option>
+    <option value="food">Food</option>
+    <option value="cafe">Cafe</option>
+    <option value="mosque">Mosque or surau</option>
+  </select>
+  <button type="submit">Find stops</button>
+  <p class="searching">Searching along the route…</p>
+</form>
+<div id="stops-result" aria-live="polite"></div>
+{{end}}
+
+{{define "stops"}}
+{{template "head" "Route stops"}}
+<main>
+  <p class="back"><a href="/">Toolbox</a></p>
+  {{template "stops-tool"}}
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "stops-result"}}
+<p class="url">Route {{printf "%.0f" .RouteKm}} km · {{.Total}} found{{if gt .Total (len .Places)}}, showing the first {{len .Places}}{{end}}</p>
+{{if .Places}}
+<ol class="stops">
+{{range .Places}}
+<li>
+  <span class="name">{{.Name}}</span>
+  <span class="hint">{{printf "%.1f" .KmAhead}} km ahead · {{.MetersOff}} m off route</span>
+  <span class="tag{{if .Easy}} tag-easy{{end}}">{{.Label}}{{with .Area}} ({{.}}){{end}}</span>
+  <span class="links">
+    <a href="{{.GoogleURL}}" target="_blank" rel="noopener">Google Maps</a>
+    <a href="{{.WazeURL}}" target="_blank" rel="noopener">Waze</a>
+  </span>
+</li>
+{{end}}
+</ol>
+{{else}}
+<p>No {{.Plural}} found within 1 km of this route.</p>
+{{end}}
+<p class="credit">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p>
 {{end}}

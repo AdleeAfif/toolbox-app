@@ -11,6 +11,7 @@ Current tools:
 - **URL to QR**: paste an http(s) URL, optionally upload a logo, get a QR code PNG in the page, and download it.
 - **Text compare**: paste two texts and see a line diff.
 - **Compress**: upload a JPEG, PNG, or PDF, then download a smaller file.
+- **Route stops**: give a start (or the browser's location) and a destination, pick petrol, food, cafe, or mosque, and get places along the driving route labelled by how easy they are to stop at.
 
 One Go binary serves both the backend and the htmx frontend. Templates live in `web/templates` and are embedded with `go:embed`, so there is no separate frontend process.
 
@@ -39,8 +40,9 @@ Without `make` on Windows, run the two `go` commands directly.
 - `internal/qr` - trims and validates the URL, encodes it to a PNG, and draws an optional logo in the center.
 - `internal/compare` - line diff of two texts.
 - `internal/compress` - shrinks a JPEG, PNG, or PDF in memory.
-- `internal/server` - `GET /` (tool list), `GET /healthz` and `GET /readyz`, and `GET` and `POST` for `/qr`, `/compare`, and `/compress`. Each `POST` returns an HTML partial. A `GET` with the `HX-Request` header returns only the tool (`<tool>-tool`) for the dialog, and a plain `GET` returns the full page.
-- `web/templates/index.html` - the toolbox home page (a box button, one `<dialog>` with a tool list view and a tool view, and a small inline script), a `<tool>-tool` and a full-page template per tool, plus `result`, `compare-result`, `compress-result`, and `error`.
+- `internal/stops` - geocodes, routes, and searches OpenStreetMap along the route, then labels each place.
+- `internal/server` - `GET /` (tool list), `GET /healthz` and `GET /readyz`, and `GET` and `POST` for `/qr`, `/compare`, `/compress`, and `/stops`. Each `POST` returns an HTML partial. A `GET` with the `HX-Request` header returns only the tool (`<tool>-tool`) for the dialog, and a plain `GET` returns the full page.
+- `web/templates/index.html` - the toolbox home page (a box button, one `<dialog>` with a tool list view and a tool view, and a small inline script), a `<tool>-tool` and a full-page template per tool, plus `result`, `compare-result`, `compress-result`, `stops-result`, and `error`. The shared `head` holds `toolboxLocate`, the location helper for Route stops.
 - `Dockerfile`, `deploy/k8s`, `.github/workflows/release.yml` - the Pi release path. See `docs/deploy.md`.
 
 ## Adding a tool
@@ -81,6 +83,18 @@ Without `make` on Windows, run the two `go` commands directly.
 - If the result is not smaller, return the original bytes and say `Already as small as this tool can make it.`
 - Download names are `compressed.jpg`, `compressed.png`, or `compressed.pdf`. Show an image preview for JPEG and PNG only.
 - A failed PDF optimize is logged and shown as `could not compress this PDF`.
+
+## Route stops rules
+
+- This is the one tool that calls outside services: Nominatim (place to coordinates), OSRM (driving route), and Overpass (places). Each call has a timeout: 30 seconds for Nominatim and OSRM, 60 for Overpass, which is often slow under load. Retry Overpass once, only on a 502, 503, or 504 that came back within 10 seconds. The whole search stops at 90 seconds, under Cloudflare's 100 second limit. Send the `toolbox-app (https://toolbox.adlee.my)` User-Agent. Overpass filters are exact tag matches in a union, not regexes. No API keys, no new dependencies.
+- Tests never call the real services. Point `stops.New` at `httptest` servers.
+- One search at a time, waiting up to 10 seconds, then `another search is running, try again in a moment`. Space Nominatim calls at least 1 second apart.
+- A `From` of `lat, lng` skips Nominatim. Place names are trimmed and at most 200 characters. Routes over 300 km are rejected before Overpass is called.
+- Search within 1 km of the route, simplified to at most 400 points. Show at most 40 places, ordered by km ahead.
+- Labels: `Easy stop` when the nearest part of the route is not expressway. On expressway, `Easy stop · R&R` inside a `services` or `rest_area` area on the left or within 60 m of the line, `R&R on the other side` inside one on the right, and `Near the route, may need an exit` otherwise. Malaysia drives on the left.
+- Never log coordinates, place names, or the route. Strip the URL from `url.Error` before logging. `POST` only, and send `Cache-Control: no-store`.
+- Show `Map data © OpenStreetMap contributors` under every result.
+- An upstream failure is logged with the service name and shown as `the map service is not responding, try again in a minute`.
 
 ## Out of scope unless asked
 

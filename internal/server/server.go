@@ -12,12 +12,17 @@ import (
 	"toolbox-app/internal/compare"
 	"toolbox-app/internal/compress"
 	"toolbox-app/internal/qr"
+	"toolbox-app/internal/stops"
 	"toolbox-app/web"
 )
 
 var tmpl = template.Must(template.ParseFS(web.Templates, "templates/*.html"))
 
 func New() http.Handler {
+	return newHandler(stops.Default())
+}
+
+func newHandler(finder *stops.Finder) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", index)
 	mux.HandleFunc("GET /healthz", live)
@@ -28,6 +33,8 @@ func New() http.Handler {
 	mux.HandleFunc("POST /compare", comparePost)
 	mux.HandleFunc("GET /compress", compressPage)
 	mux.HandleFunc("POST /compress", compressPost)
+	mux.HandleFunc("GET /stops", stopsPage)
+	mux.HandleFunc("POST /stops", stopsPost(finder))
 	return mux
 }
 
@@ -151,6 +158,34 @@ func compressPost(w http.ResponseWriter, r *http.Request) {
 		"Base64":  base64.StdEncoding.EncodeToString(res.Data),
 		"Preview": res.Preview,
 	})
+}
+
+func stopsPage(w http.ResponseWriter, r *http.Request) {
+	page(w, r, "stops")
+}
+
+func stopsPost(finder *stops.Finder) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+		if err := r.ParseForm(); err != nil {
+			render(w, "error", stops.ErrTooLong.Error())
+			return
+		}
+		res, err := finder.Search(r.Context(), r.PostFormValue("from"), r.PostFormValue("to"), r.PostFormValue("kind"))
+		if err != nil {
+			msg := err.Error()
+			var inputErr *stops.InputError
+			if !errors.As(err, &inputErr) {
+				// err names the failing service only. Never log the user's places.
+				log.Printf("stops: %v", err)
+				msg = stops.MsgUpstream
+			}
+			render(w, "error", msg)
+			return
+		}
+		render(w, "stops-result", res)
+	}
 }
 
 func readUpload(r *http.Request, name string, max int64) ([]byte, error) {
